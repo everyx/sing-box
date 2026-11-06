@@ -27,7 +27,16 @@ const (
 	pathProc = "/proc"
 
 	processPathsAllUsers = ^uint32(0)
+
+	deletedPathSuffix = " (deleted)"
 )
+
+// TrimDeletedPathSuffix drops the " (deleted)" marker the kernel appends to
+// /proc/<pid>/exe once the executable is unlinked, which would silently break
+// process_name, process_path and process_path_regex rules for upgraded binaries.
+func TrimDeletedPathSuffix(processPath string) string {
+	return strings.TrimSuffix(processPath, deletedPathSuffix)
+}
 
 var _ Searcher = (*linuxSearcher)(nil)
 
@@ -179,7 +188,7 @@ func buildProcessPaths(uid uint32) (map[uint32]string, error) {
 		}
 		processPath := filepath.Join(pathProc, file.Name())
 		fdPath := filepath.Join(processPath, "fd")
-		exePath, err := os.Readlink(filepath.Join(processPath, "exe"))
+		exePath, err := readProcessPath(processPath)
 		if err != nil {
 			if isIgnorableProcError(err) {
 				continue
@@ -205,6 +214,14 @@ func buildProcessPaths(uid uint32) (map[uint32]string, error) {
 		}
 	}
 	return processPaths, nil
+}
+
+func readProcessPath(processPath string) (string, error) {
+	exePath, err := os.Readlink(filepath.Join(processPath, "exe"))
+	if err != nil {
+		return "", err
+	}
+	return TrimDeletedPathSuffix(exePath), nil
 }
 
 func isIgnorableProcError(err error) bool {

@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/sagernet/sing-box/adapter"
+	"github.com/sagernet/sing-box/common/process"
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/dns"
 	"github.com/sagernet/sing-box/log"
@@ -125,7 +126,7 @@ func (t *resolve1Manager) createMetadata(sender dbus.Sender) adapter.InboundCont
 
 	processPath, err := os.Readlink(F.ToString("/proc/", senderPid, "/exe"))
 	if err == nil {
-		processInfo.ProcessPath = processPath
+		processInfo.ProcessPath = process.TrimDeletedPathSuffix(processPath)
 	} else {
 		processName, readErr := os.ReadFile(F.ToString("/proc/", senderPid, "/comm"))
 		if readErr == nil {
